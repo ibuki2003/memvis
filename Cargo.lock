@@ -132,6 +132,7 @@ dependencies = [
  "ansi_term",
  "clap",
  "elf",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -157,6 +158,12 @@ checksum = "0e4dccaaaf89514f546c693ddc140f729f958c247918a13380cccc6078391acc"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 
 [[package]]
 name = "strsim"

@@ -73,7 +73,12 @@ fn run_elf(args: Args) {
             true
         })
         .map(|s| {
-            let name = strtab.get(s.st_name as usize).unwrap().to_string();
+            let name = strtab.get(s.st_name as usize).unwrap();
+            let name = if args.demangle {
+                rustc_demangle::demangle(name).to_string()
+            } else {
+                name.to_string()
+            };
             Section {
                 addr: s.st_value,
                 size: s.st_size,
