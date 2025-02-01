@@ -63,30 +63,37 @@ fn run_elf(args: Args) {
         .collect::<Vec<_>>();
     sections.sort_by_key(|s| (s.addr, s.body.len()));
 
-    let (symbols, strtab) = elf.symbol_table().unwrap().unwrap();
-    let mut symbols = symbols
-        .iter()
-        .filter(|s| {
-            if args.hide_empty {
-                return s.st_size != 0;
-            }
-            true
-        })
-        .map(|s| {
-            let name = strtab.get(s.st_name as usize).unwrap();
-            let name = if args.demangle {
-                rustc_demangle::demangle(name).to_string()
-            } else {
-                name.to_string()
-            };
-            Section {
-                addr: s.st_value,
-                size: s.st_size,
-                name,
-            }
-        })
-        .collect::<Vec<_>>();
-    symbols.sort_by_key(|s| (s.addr, s.size));
+    let symbols = match elf.symbol_table().unwrap() {
+        None => {
+            vec![]
+        }
+        Some((symbols, strtab)) => {
+            let mut symbols = symbols
+                .iter()
+                .filter(|s| {
+                    if args.hide_empty {
+                        return s.st_size != 0;
+                    }
+                    true
+                })
+                .map(|s| {
+                    let name = strtab.get(s.st_name as usize).unwrap();
+                    let name = if args.demangle {
+                        rustc_demangle::demangle(name).to_string()
+                    } else {
+                        name.to_string()
+                    };
+                    Section {
+                        addr: s.st_value,
+                        size: s.st_size,
+                        name,
+                    }
+                })
+                .collect::<Vec<_>>();
+            symbols.sort_by_key(|s| (s.addr, s.size));
+            symbols
+        }
+    };
 
     run_inner(sections, symbols, args.cols, args.break_on_bounds);
 }
