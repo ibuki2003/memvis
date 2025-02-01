@@ -33,6 +33,16 @@ pub struct Args {
 fn main() {
     let args = Args::parse();
 
+    let filename = &args.filename;
+
+    if filename.ends_with(".uf2") {
+        run_uf2(args);
+    } else {
+        run_elf(args);
+    }
+}
+
+fn run_elf(args: Args) {
     let content = std::fs::read(&args.filename).unwrap();
     let elf = elf::ElfBytes::<AnyEndian>::minimal_parse(&content).unwrap();
 
@@ -74,4 +84,25 @@ fn main() {
     symbols.sort_by_key(|s| (s.addr, s.size));
 
     run_inner(sections, symbols, args.cols, args.break_on_bounds);
+}
+
+fn run_uf2(args: Args) {
+    let content = std::fs::read(&args.filename).unwrap();
+    assert!(content.len() % 512 == 0);
+
+    let mut sections = vec![];
+    for chunk in content.chunks(512) {
+        let addr = u32::from_le_bytes(chunk[12..16].try_into().unwrap()) as u64;
+        let size = u32::from_le_bytes(chunk[16..20].try_into().unwrap()) as u64;
+        let idx = u32::from_le_bytes(chunk[20..24].try_into().unwrap());
+        assert!(size <= 476);
+        let data = &chunk[32..32 + size as usize];
+        sections.push(Block {
+            addr,
+            name: format!("Chunk#{}", idx),
+            body: data,
+        });
+    }
+
+    run_inner(sections, vec![], args.cols, args.break_on_bounds);
 }
