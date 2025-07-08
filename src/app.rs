@@ -16,10 +16,6 @@ pub fn run_inner(sections: Vec<Block>, symbols: Vec<Section>, cols: u64, break_o
 
     for (i, s) in sections.iter().enumerate() {
         let addr = s.addr;
-        if addr == 0 {
-            continue;
-        }
-
         if addr != 0 {
             symbol_events.advance(addr - 1, &mut printer);
         }
