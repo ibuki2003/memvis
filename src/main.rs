@@ -46,22 +46,37 @@ fn run_elf(args: Args) {
     let content = std::fs::read(&args.filename).unwrap();
     let elf = elf::ElfBytes::<AnyEndian>::minimal_parse(&content).unwrap();
 
-    let (sections, strtab) = elf.section_headers_with_strtab().unwrap();
-    let strtab = strtab.unwrap();
-    let mut sections = sections
+    // Build memory blocks from program headers
+    let mut blocks = elf
+        .segments()
         .unwrap()
         .iter()
-        .map(|s| {
-            let name = strtab.get(s.sh_name as usize).unwrap().to_string();
-            // (*s, name)
+        .filter(|ph| ph.p_type == elf::abi::PT_LOAD)
+        .map(|ph| {
+            let start = ph.p_offset as usize;
+            let end = (ph.p_offset + ph.p_filesz) as usize;
             Block {
-                addr: s.sh_addr,
-                name,
-                body: elf.section_data(&s).unwrap().0,
+                addr: ph.p_vaddr,
+                name: "Segment".to_string(),
+                body: &content[start..end],
             }
         })
         .collect::<Vec<_>>();
-    sections.sort_by_key(|s| (s.addr, s.body.len()));
+    blocks.sort_by_key(|b| (b.addr, b.body.len()));
+
+    // Build logical sections from ELF section headers
+    let (sec_headers, strtab) = elf.section_headers_with_strtab().unwrap();
+    let strtab = strtab.unwrap();
+    let mut sections = sec_headers
+        .unwrap()
+        .iter()
+        .map(|s| Section {
+            addr: s.sh_addr,
+            size: s.sh_size,
+            name: strtab.get(s.sh_name as usize).unwrap().to_string(),
+        })
+        .collect::<Vec<_>>();
+    sections.sort_by_key(|s| (s.addr, s.size));
 
     let symbols = match elf.symbol_table().unwrap() {
         None => {
@@ -95,7 +110,7 @@ fn run_elf(args: Args) {
         }
     };
 
-    run_inner(sections, symbols, args.cols, args.break_on_bounds);
+    run_inner(blocks, sections, symbols, args.cols, args.break_on_bounds);
 }
 
 fn run_uf2(args: Args) {
@@ -116,5 +131,5 @@ fn run_uf2(args: Args) {
         });
     }
 
-    run_inner(sections, vec![], args.cols, args.break_on_bounds);
+    run_inner(sections, vec![], vec![], args.cols, args.break_on_bounds);
 }
