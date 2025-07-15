@@ -117,19 +117,24 @@ fn run_uf2(args: Args) {
     let content = std::fs::read(&args.filename).unwrap();
     assert!(content.len() % 512 == 0);
 
-    let mut sections = vec![];
+    let mut blocks = Vec::new();
     for chunk in content.chunks(512) {
         let addr = u32::from_le_bytes(chunk[12..16].try_into().unwrap()) as u64;
         let size = u32::from_le_bytes(chunk[16..20].try_into().unwrap()) as u64;
         let idx = u32::from_le_bytes(chunk[20..24].try_into().unwrap());
         assert!(size <= 476);
         let data = &chunk[32..32 + size as usize];
-        sections.push(Block {
+        blocks.push(Block {
             addr,
             name: format!("Chunk#{}", idx),
             body: data,
         });
     }
 
-    run_inner(sections, vec![], vec![], args.cols, args.break_on_bounds);
+    let uf2_sections: Vec<Section> = blocks.iter().map(|block| Section {
+        addr: block.addr,
+        size: block.body.len() as u64,
+        name: block.name.clone(),
+    }).collect();
+    run_inner(blocks, uf2_sections, vec![], args.cols, args.break_on_bounds);
 }
